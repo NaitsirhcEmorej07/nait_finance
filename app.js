@@ -256,26 +256,42 @@ function handleAccountTypeChange(mode) {
 
   if (!selectEl || !wrapEl || !inputEl) return;
 
+  const descEl = isDeposit ? document.getElementById('depositDescription') : null;
+
   const accountType = selectEl.value;
   if (accountType === 'cash') {
     wrapEl.classList.add('hidden');
     inputEl.required = false;
     inputEl.value = '';
+    if (isDeposit && descEl) {
+      descEl.value = 'Onhand';
+    }
     return;
   }
 
   // Show sub-account input when 'e-wallet' or 'bank' is chosen
   wrapEl.classList.remove('hidden');
   inputEl.required = true;
-  inputEl.value = '';
 
   const accentStarClass = isDeposit ? 'text-emerald-600' : 'text-rose-600';
   if (accountType === 'e-wallet') {
     labelEl.innerHTML = `E-Wallet <span class="${accentStarClass}">*</span>`;
     iconEl.className = 'pi pi-mobile absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs';
+    if (isDeposit) {
+      inputEl.value = 'Gotyme';
+      if (descEl) descEl.value = 'Cashin';
+    } else {
+      inputEl.value = '';
+    }
   } else {
     labelEl.innerHTML = `Bank <span class="${accentStarClass}">*</span>`;
     iconEl.className = 'pi pi-building-columns absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs';
+    if (isDeposit) {
+      inputEl.value = 'Landbank';
+      if (descEl) descEl.value = 'Deposit';
+    } else {
+      inputEl.value = '';
+    }
   }
 
   // Populate historical sub-accounts strictly from SQLite for the selected account type
@@ -1288,8 +1304,8 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
       const keys = await caches.keys();
-      await Promise.all(keys.filter((k) => k !== 'nait-finance-light-v9').map((k) => caches.delete(k)));
-      const reg = await navigator.serviceWorker.register('./sw.js?v=9');
+      await Promise.all(keys.filter((k) => k !== 'nait-finance-light-v10').map((k) => caches.delete(k)));
+      const reg = await navigator.serviceWorker.register('./sw.js?v=10');
       await reg.update();
     } catch (e) {}
   });
