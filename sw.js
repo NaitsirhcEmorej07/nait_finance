@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nait-finance-light-v8';
+const CACHE_NAME = 'nait-finance-light-v9';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
