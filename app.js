@@ -1288,8 +1288,8 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
       const keys = await caches.keys();
-      await Promise.all(keys.filter((k) => k !== 'nait-finance-light-v5').map((k) => caches.delete(k)));
-      const reg = await navigator.serviceWorker.register('./sw.js?v=5');
+      await Promise.all(keys.filter((k) => k !== 'nait-finance-light-v6').map((k) => caches.delete(k)));
+      const reg = await navigator.serviceWorker.register('./sw.js?v=6');
       await reg.update();
     } catch (e) {}
   });
