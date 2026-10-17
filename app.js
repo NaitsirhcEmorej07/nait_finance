@@ -5,6 +5,14 @@
 const DB_STORE_NAME = 'nait_finance_idb';
 const DB_KEY = 'sqlite_binary_dump';
 
+// Google OAuth & Authentication Constants
+const GOOGLE_CLIENT_ID = '653800757126-b57ib9b29p1g47t97fc4utcpdhnoja4g.apps.googleusercontent.com';
+const AUTH_SESSION_KEY = 'nait_auth_session';
+const REGISTERED_USERS_KEY = 'nait_registered_users';
+
+let currentAuthTab = 'signin';
+let googleGisRetryCount = 0;
+
 // Option A (BYOK — Bring Your Own Key): No hardcoded keys in source code.
 // Users enter their personal Groq / Gemini API keys in Settings (stored in device localStorage).
 const DEFAULT_KEYS = {
@@ -20,6 +28,385 @@ let currentProvider = localStorage.getItem('nait_llm_provider') || 'groq';
 let maskBalance = false;
 let chatMessages = [];
 let deferredInstallPrompt = null;
+
+// ============================================================================
+// 0. AUTHENTICATION & LANDING PAGE CONTROLLER (Google GIS + Local Vault)
+// ============================================================================
+function getAuthSession() {
+  try {
+    const raw = localStorage.getItem(AUTH_SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function setAuthSession(user) {
+  localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(user));
+  applyAuthState();
+}
+
+function handleSignOut() {
+  if (!confirm('Are you sure you want to sign out? Your financial records remain safely preserved on this device.')) return;
+  localStorage.removeItem(AUTH_SESSION_KEY);
+  closeAllModals();
+  applyAuthState();
+  showToast('Signed out of NAIT FINANCE');
+}
+
+function closeAllModals() {
+  [
+    'walletsBreakdownModal',
+    'depositModal',
+    'spendModal',
+    'trackModal',
+    'reportsModal',
+    'settingsModal',
+    'deleteConfirmModal'
+  ].forEach((id) => closeModal(id));
+}
+
+function applyAuthState() {
+  const session = getAuthSession();
+  const landingEl = document.getElementById('landingPage');
+  const appEl = document.getElementById('appContainer');
+
+  if (session) {
+    if (landingEl) landingEl.classList.add('hidden');
+    if (appEl) {
+      appEl.classList.remove('hidden');
+      appEl.classList.add('flex');
+    }
+    updateUserProfileDisplays(session);
+    if (!db) {
+      initSqliteEngine();
+    } else {
+      refreshAllViews();
+    }
+  } else {
+    if (appEl) {
+      appEl.classList.add('hidden');
+      appEl.classList.remove('flex');
+    }
+    if (landingEl) landingEl.classList.remove('hidden');
+    closeAllModals();
+    initGoogleAuth();
+  }
+}
+
+function updateUserProfileDisplays(session) {
+  const initial = (session.name || session.email || 'U').charAt(0).toUpperCase();
+  const firstName = (session.name || session.email || 'User').split(' ')[0];
+
+  // Header Displays
+  const headerName = document.getElementById('userHeaderName');
+  const headerInitial = document.getElementById('userHeaderInitial');
+  const headerAvatar = document.getElementById('userHeaderAvatar');
+
+  if (headerName) headerName.textContent = firstName;
+  if (session.avatar && headerAvatar) {
+    headerAvatar.src = session.avatar;
+    headerAvatar.classList.remove('hidden');
+    if (headerInitial) headerInitial.classList.add('hidden');
+  } else if (headerInitial) {
+    headerInitial.textContent = initial;
+    headerInitial.classList.remove('hidden');
+    if (headerAvatar) headerAvatar.classList.add('hidden');
+  }
+
+  // Settings Displays
+  const settingsName = document.getElementById('settingsUserName');
+  const settingsEmail = document.getElementById('settingsUserEmail');
+  const settingsInitial = document.getElementById('settingsUserInitial');
+  const settingsAvatar = document.getElementById('settingsUserAvatar');
+  const settingsBadge = document.getElementById('settingsUserProviderBadge');
+
+  if (settingsName) settingsName.textContent = session.name || 'User';
+  if (settingsEmail) settingsEmail.textContent = session.email || '';
+  if (settingsBadge) {
+    settingsBadge.textContent = session.provider === 'google' ? 'Google' : 'Email Vault';
+    settingsBadge.className = session.provider === 'google'
+      ? 'text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700'
+      : 'text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700';
+  }
+
+  if (session.avatar && settingsAvatar) {
+    settingsAvatar.src = session.avatar;
+    settingsAvatar.classList.remove('hidden');
+    if (settingsInitial) settingsInitial.classList.add('hidden');
+  } else if (settingsInitial) {
+    settingsInitial.textContent = initial;
+    settingsInitial.classList.remove('hidden');
+    if (settingsAvatar) settingsAvatar.classList.add('hidden');
+  }
+}
+
+// Google Identity Services (GIS)
+function initGoogleAuth() {
+  if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+    try {
+      google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleSignInCallback,
+        auto_select: false,
+        cancel_on_tap_outside: true
+      });
+
+      const btnWrapper = document.getElementById('googleBtnWrapper');
+      if (btnWrapper) {
+        btnWrapper.innerHTML = '';
+        google.accounts.id.renderButton(btnWrapper, {
+          type: 'standard',
+          theme: 'outline',
+          size: 'large',
+          text: 'continue_with',
+          shape: 'pill',
+          logo_alignment: 'left',
+          width: 320
+        });
+      }
+
+      // Hide fallback button if native Google button successfully renders
+      const fallbackBtn = document.getElementById('googleCustomBtn');
+      if (fallbackBtn) {
+        fallbackBtn.classList.add('hidden');
+      }
+    } catch (err) {
+      console.warn('Google GIS init error:', err);
+    }
+  } else {
+    googleGisRetryCount++;
+    if (googleGisRetryCount < 10) {
+      setTimeout(initGoogleAuth, 500);
+    }
+  }
+}
+
+function triggerGoogleSignInPrompt() {
+  if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+    try {
+      google.accounts.id.prompt((notification) => {
+        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+          console.warn('Google One Tap not displayed:', notification.getNotDisplayedReason());
+        }
+      });
+    } catch (e) {
+      console.warn('Prompt error:', e);
+    }
+  } else {
+    showToast('Google Services loading, please wait...', true);
+    initGoogleAuth();
+  }
+}
+
+function handleGoogleSignInCallback(response) {
+  if (!response || !response.credential) {
+    showAuthError('Google sign in did not return credentials. Please try again.');
+    return;
+  }
+  const payload = parseJwt(response.credential);
+  if (!payload || !payload.email) {
+    showAuthError('Unable to parse Google authentication data.');
+    return;
+  }
+
+  const user = {
+    id: 'google_' + (payload.sub || Date.now()),
+    name: payload.name || payload.given_name || payload.email.split('@')[0],
+    email: payload.email,
+    avatar: payload.picture || '',
+    provider: 'google',
+    signedInAt: new Date().toISOString()
+  };
+
+  setAuthSession(user);
+  showToast(`Welcome, ${user.name}!`);
+}
+
+function parseJwt(token) {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    return null;
+  }
+}
+
+// Manual Sign In / Sign Up
+function setAuthTab(tab) {
+  currentAuthTab = tab;
+  const signinBtn = document.getElementById('authTabSignIn');
+  const signupBtn = document.getElementById('authTabSignUp');
+  const nameWrap = document.getElementById('authNameWrap');
+  const submitBtn = document.getElementById('authSubmitBtn');
+  const toggleText = document.getElementById('authToggleText');
+  const heading = document.getElementById('authHeading');
+  const subheading = document.getElementById('authSubheading');
+  const authError = document.getElementById('authError');
+  if (authError) authError.classList.add('hidden');
+
+  if (tab === 'signin') {
+    if (signinBtn) signinBtn.className = 'py-2 text-xs font-bold rounded-lg transition bg-blue-600 text-white shadow-sm';
+    if (signupBtn) signupBtn.className = 'py-2 text-xs font-semibold rounded-lg transition text-slate-400 hover:text-white';
+    if (nameWrap) nameWrap.classList.add('hidden');
+    const nameInput = document.getElementById('authName');
+    if (nameInput) nameInput.required = false;
+    if (submitBtn) submitBtn.textContent = 'Sign In to NAIT FINANCE';
+    if (heading) heading.textContent = 'Sign In to NAIT FINANCE';
+    if (subheading) subheading.textContent = 'Authenticate to access your private ledger';
+    if (toggleText) {
+      toggleText.innerHTML = `Don't have an account? <button type="button" onclick="setAuthTab('signup')" class="text-blue-400 font-bold hover:underline">Create Account</button>`;
+    }
+  } else {
+    if (signupBtn) signupBtn.className = 'py-2 text-xs font-bold rounded-lg transition bg-blue-600 text-white shadow-sm';
+    if (signinBtn) signinBtn.className = 'py-2 text-xs font-semibold rounded-lg transition text-slate-400 hover:text-white';
+    if (nameWrap) nameWrap.classList.remove('hidden');
+    const nameInput = document.getElementById('authName');
+    if (nameInput) nameInput.required = true;
+    if (submitBtn) submitBtn.textContent = 'Create Account & Unlock';
+    if (heading) heading.textContent = 'Create Your Private Vault';
+    if (subheading) subheading.textContent = 'Setup an encrypted local account on this device';
+    if (toggleText) {
+      toggleText.innerHTML = `Already have an account? <button type="button" onclick="setAuthTab('signin')" class="text-blue-400 font-bold hover:underline">Sign In</button>`;
+    }
+  }
+}
+
+function scrollToAuth(mode) {
+  setAuthTab(mode);
+  const sec = document.getElementById('authSection');
+  if (sec) sec.scrollIntoView({ behavior: 'smooth' });
+}
+
+function togglePasswordVisibility() {
+  const pwdInput = document.getElementById('authPassword');
+  const pwdIcon = document.getElementById('authPasswordIcon');
+  if (!pwdInput || !pwdIcon) return;
+  if (pwdInput.type === 'password') {
+    pwdInput.type = 'text';
+    pwdIcon.className = 'pi pi-eye-slash text-xs text-slate-400';
+  } else {
+    pwdInput.type = 'password';
+    pwdIcon.className = 'pi pi-eye text-xs text-slate-400';
+  }
+}
+
+function getRegisteredUsers() {
+  try {
+    const raw = localStorage.getItem(REGISTERED_USERS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+async function hashPassword(password, salt = 'nait_salt_2026') {
+  const enc = new TextEncoder();
+  const data = enc.encode(salt + password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function showAuthError(msg) {
+  const errWrap = document.getElementById('authError');
+  const errText = document.getElementById('authErrorText');
+  if (errWrap && errText) {
+    errText.textContent = msg;
+    errWrap.classList.remove('hidden');
+  } else {
+    showToast(msg, true);
+  }
+}
+
+async function handleManualAuthSubmit(e) {
+  if (e && e.preventDefault) e.preventDefault();
+  const errWrap = document.getElementById('authError');
+  if (errWrap) errWrap.classList.add('hidden');
+
+  const email = (document.getElementById('authEmail')?.value || '').trim().toLowerCase();
+  const password = document.getElementById('authPassword')?.value || '';
+
+  if (!email || !password) {
+    showAuthError('Please fill in both email and password.');
+    return;
+  }
+
+  const registered = getRegisteredUsers();
+
+  if (currentAuthTab === 'signup') {
+    const name = (document.getElementById('authName')?.value || '').trim();
+    if (!name) {
+      showAuthError('Please enter your full name.');
+      return;
+    }
+    if (password.length < 6) {
+      showAuthError('Password must be at least 6 characters.');
+      return;
+    }
+
+    const existing = registered.find((u) => u.email === email);
+    if (existing) {
+      showAuthError('This email is already registered. Please sign in instead.');
+      return;
+    }
+
+    const passwordHash = await hashPassword(password);
+    const newUser = {
+      id: 'usr_' + Date.now(),
+      name,
+      email,
+      passwordHash,
+      provider: 'manual',
+      createdAt: new Date().toISOString()
+    };
+
+    registered.push(newUser);
+    localStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(registered));
+
+    setAuthSession({
+      id: newUser.id,
+      name: newUser.name,
+      email: newUser.email,
+      avatar: '',
+      provider: 'manual',
+      signedInAt: new Date().toISOString()
+    });
+
+    showToast(`Account created! Welcome, ${newUser.name}`);
+  } else {
+    // Manual Sign In
+    const user = registered.find((u) => u.email === email);
+    if (!user) {
+      showAuthError('No registered account found with this email. Please create an account.');
+      return;
+    }
+
+    const inputHash = await hashPassword(password);
+    if (inputHash !== user.passwordHash) {
+      showAuthError('Incorrect password. Please try again.');
+      return;
+    }
+
+    setAuthSession({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      avatar: user.avatar || '',
+      provider: 'manual',
+      signedInAt: new Date().toISOString()
+    });
+
+    showToast(`Welcome back, ${user.name}!`);
+  }
+}
 
 // ============================================================================
 // 1. INDEXEDDB PERSISTENCE FOR SQLITE WASM BINARY
@@ -215,6 +602,10 @@ function showToast(message, isError = false) {
 }
 
 function openModal(id) {
+  if (!getAuthSession()) {
+    showToast('Please sign in to access NAIT FINANCE', true);
+    return;
+  }
   document.getElementById(id).classList.remove('hidden');
   if (id === 'depositModal') {
     handleAccountTypeChange('deposit');
@@ -1304,8 +1695,8 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
       const keys = await caches.keys();
-      await Promise.all(keys.filter((k) => k !== 'nait-finance-light-v10').map((k) => caches.delete(k)));
-      const reg = await navigator.serviceWorker.register('./sw.js?v=10');
+      await Promise.all(keys.filter((k) => k !== 'nait-finance-light-v11').map((k) => caches.delete(k)));
+      const reg = await navigator.serviceWorker.register('./sw.js?v=11');
       await reg.update();
     } catch (e) {}
   });
@@ -1314,5 +1705,5 @@ if ('serviceWorker' in navigator) {
 window.addEventListener('DOMContentLoaded', () => {
   const savedTheme = localStorage.getItem('nait_theme_mode') || 'light';
   applyThemeMode(savedTheme);
-  initSqliteEngine();
+  applyAuthState();
 });

@@ -39,6 +39,9 @@
   <!-- SQLite WebAssembly (sql.js) CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
 
+  <!-- Google Identity Services (GIS) CDN -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
   <style>
     * {
       -webkit-tap-highlight-color: transparent;
@@ -130,12 +133,229 @@
     }
   </style>
 </head>
-<body class="min-h-screen flex justify-center bg-slate-100 text-slate-900 selection:bg-blue-500/20">
+<body class="min-h-screen bg-slate-950 text-slate-100 selection:bg-blue-500/20 font-sans">
 
-  <!-- Mobile-First App Container -->
-  <div class="w-full max-w-[430px] min-h-screen bg-slate-50 flex flex-col relative shadow-[0_0_40px_rgba(15,23,42,0.06)] border-x border-slate-200/80">
+  <!-- ===================================================================== -->
+  <!-- 1. LANDING PAGE & AUTHENTICATION GATE (Visible when not signed in)    -->
+  <!-- ===================================================================== -->
+  <div id="landingPage" class="w-full min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-blue-500/30 relative overflow-x-hidden">
+    <!-- Ambient Background Glows -->
+    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-96 bg-gradient-to-b from-blue-600/20 via-indigo-600/10 to-transparent blur-3xl pointer-events-none -z-10"></div>
+    <div class="absolute top-96 right-0 w-72 h-72 bg-emerald-500/10 blur-3xl pointer-events-none -z-10"></div>
 
-    <!-- Compact Top Sticky App Bar with Official NAIT FINANCE Logo -->
+    <!-- Top Sticky Landing Header -->
+    <header class="sticky top-0 z-40 bg-slate-950/80 backdrop-blur-md border-b border-slate-800/80 px-4 py-3">
+      <div class="max-w-4xl mx-auto flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <img src="./icon.png" alt="NAIT FINANCE Logo" class="w-8 h-8 rounded-xl shadow-md border border-slate-700/80 object-cover" />
+          <span class="font-extrabold tracking-tight text-sm text-blue-500">NAIT FINANCE</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="scrollToAuth('signin')" class="px-3.5 py-1.5 rounded-full text-xs font-bold bg-white/10 hover:bg-white/20 border border-white/20 text-white transition active:scale-95 flex items-center gap-1.5">
+            <i class="pi pi-sign-in text-[10px]"></i> Sign In
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Landing Body -->
+    <main class="flex-1 max-w-4xl mx-auto px-4 py-8 space-y-12 w-full">
+      
+      <!-- Hero Section -->
+      <section class="text-center space-y-4 pt-2">
+        <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-semibold shadow-sm">
+          <i class="pi pi-shield text-emerald-400 text-xs"></i>
+          <span>100% On-Device Privacy • SQLite WebAssembly</span>
+        </div>
+
+        <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-white leading-[1.18] max-w-2xl mx-auto">
+          Take Full Control of Your Wealth — <span class="bg-gradient-to-r from-blue-400 via-sky-300 to-emerald-400 bg-clip-text text-transparent">Offline & Intelligent</span>
+        </h1>
+
+        <p class="text-xs sm:text-sm text-slate-400 leading-relaxed max-w-md mx-auto">
+          Private personal finance tracker for Cash, E-Wallets, and Banks. Powered by an on-device SQLite ledger and your own AI advisor. Zero cloud leaks.
+        </p>
+
+        <div class="flex items-center justify-center gap-3 pt-2">
+          <button type="button" onclick="scrollToAuth('signup')" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-blue-500/30 active:scale-95 transition flex items-center gap-1.5">
+            <i class="pi pi-user-plus text-xs"></i> Get Started Free
+          </button>
+          <button type="button" onclick="scrollToAuth('signin')" class="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 text-xs font-bold active:scale-95 transition flex items-center gap-1.5">
+            <i class="pi pi-lock text-xs"></i> Unlock Vault
+          </button>
+        </div>
+      </section>
+
+      <!-- Interactive UI Teaser Card -->
+      <section class="max-w-[390px] mx-auto w-full">
+        <div class="hero-card rounded-2xl p-4 border border-blue-500/40 shadow-2xl shadow-blue-600/30 text-white space-y-3">
+          <div class="flex items-center justify-between text-[10px] text-blue-100 uppercase tracking-wider font-semibold">
+            <span class="flex items-center gap-1"><i class="pi pi-shield text-sky-300"></i> Total Net Balance</span>
+            <span class="px-1.5 py-0.5 rounded bg-white/20 text-[9px] font-mono">PHP (₱)</span>
+          </div>
+          <div>
+            <h3 class="text-2xl sm:text-3xl font-extrabold font-mono tracking-tight text-white">₱248,550.00</h3>
+          </div>
+          <div class="grid grid-cols-2 gap-3 pt-2.5 border-t border-white/20">
+            <div>
+              <span class="text-[10px] text-blue-200 block">Total Deposit</span>
+              <p class="text-xs font-bold font-mono text-emerald-300 mt-0.5">+₱310,000.00</p>
+            </div>
+            <div class="border-l border-white/20 pl-3">
+              <span class="text-[10px] text-blue-200 block">Total Spend</span>
+              <p class="text-xs font-bold font-mono text-rose-300 mt-0.5">-₱61,450.00</p>
+            </div>
+          </div>
+          <div class="bg-white/10 rounded-xl p-2.5 backdrop-blur-sm border border-white/10 flex items-center justify-between text-[11px]">
+            <span class="flex items-center gap-1.5 font-medium text-blue-100">
+              <i class="pi pi-sparkles text-amber-300 text-xs"></i> AI Status
+            </span>
+            <span class="font-bold text-emerald-300">80.2% Net Saved this month</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3 Feature Pillars -->
+      <section class="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl mx-auto">
+        <!-- Feature 1 -->
+        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 space-y-2 hover:border-slate-700 transition">
+          <div class="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center">
+            <i class="pi pi-wallet text-sm"></i>
+          </div>
+          <h3 class="text-xs font-bold text-white">Multi-Wallet Breakdown</h3>
+          <p class="text-[11px] text-slate-400 leading-relaxed">
+            Separate Cash, E-Wallets (Gotyme, GCash, Maya), and Banks (Landbank, BDO) with sub-accounts and share percentages.
+          </p>
+        </div>
+
+        <!-- Feature 2 -->
+        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 space-y-2 hover:border-slate-700 transition">
+          <div class="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center">
+            <i class="pi pi-sparkles text-sm"></i>
+          </div>
+          <h3 class="text-xs font-bold text-white">Private AI Advisor (BYOK)</h3>
+          <p class="text-[11px] text-slate-400 leading-relaxed">
+            Bring your own Groq or Gemini key. Ask questions in Taglish or English against your live on-device SQLite ledger.
+          </p>
+        </div>
+
+        <!-- Feature 3 -->
+        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 space-y-2 hover:border-slate-700 transition">
+          <div class="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
+            <i class="pi pi-database text-sm"></i>
+          </div>
+          <h3 class="text-xs font-bold text-white">100% On-Device SQLite</h3>
+          <p class="text-[11px] text-slate-400 leading-relaxed">
+            Data stays in your browser's IndexedDB. Export or import full <code class="text-emerald-400 text-[10px]">.sqlite</code> databases anytime with 1 tap.
+          </p>
+        </div>
+      </section>
+
+      <!-- AUTHENTICATION GATE CARD -->
+      <section id="authSection" class="max-w-[400px] mx-auto w-full pt-4">
+        <div class="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-2xl backdrop-blur-xl space-y-4">
+          <div class="text-center space-y-1">
+            <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 p-0.5 mx-auto shadow-md shadow-blue-500/20">
+              <img src="./icon.png" alt="Logo" class="w-full h-full rounded-2xl object-cover" />
+            </div>
+            <h2 id="authHeading" class="text-base font-extrabold text-white">Sign In to NAIT FINANCE</h2>
+            <p id="authSubheading" class="text-[11px] text-slate-400">Authenticate to access your private ledger</p>
+          </div>
+
+          <!-- Auth Mode Switcher Tabs -->
+          <div class="grid grid-cols-2 gap-1 bg-slate-800/80 p-1 rounded-xl border border-slate-700/60 text-center">
+            <button type="button" id="authTabSignIn" onclick="setAuthTab('signin')" class="py-2 text-xs font-bold rounded-lg transition bg-blue-600 text-white shadow-sm">
+              Sign In
+            </button>
+            <button type="button" id="authTabSignUp" onclick="setAuthTab('signup')" class="py-2 text-xs font-semibold rounded-lg transition text-slate-400 hover:text-white">
+              Create Account
+            </button>
+          </div>
+
+          <!-- Google Sign In Button Container -->
+          <div class="space-y-2">
+            <div id="googleBtnWrapper" class="flex justify-center w-full min-h-[44px]">
+              <!-- Rendered via Google Identity Services -->
+            </div>
+            <!-- Custom Fallback / Alternative Google Trigger Button -->
+            <button type="button" id="googleCustomBtn" onclick="triggerGoogleSignInPrompt()" class="w-full py-2.5 px-3 rounded-xl bg-white hover:bg-slate-50 text-slate-800 text-xs font-bold border border-slate-300 flex items-center justify-center gap-2 shadow-sm transition active:scale-95">
+              <svg class="w-4 h-4" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+              </svg>
+              <span>Continue with Google</span>
+            </button>
+          </div>
+
+          <!-- Divider -->
+          <div class="relative flex items-center justify-center my-2">
+            <hr class="w-full border-slate-800">
+            <span class="absolute px-3 bg-slate-900 text-[10px] uppercase font-bold text-slate-500 tracking-wider">or email</span>
+          </div>
+
+          <!-- Manual Auth Form -->
+          <form id="manualAuthForm" onsubmit="handleManualAuthSubmit(event)" class="space-y-3" autocomplete="off">
+            <div id="authNameWrap" class="hidden">
+              <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Full Name</label>
+              <div class="relative">
+                <i class="pi pi-user absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                <input id="authName" type="text" placeholder="e.g. Christian Morej" class="w-full bg-slate-800 border border-slate-700 focus:border-blue-500 focus:bg-slate-800/90 rounded-xl pl-8 pr-3 py-2.5 text-xs text-white placeholder-slate-500 outline-none transition" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Email Address</label>
+              <div class="relative">
+                <i class="pi pi-envelope absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                <input id="authEmail" type="email" required placeholder="name@example.com" class="w-full bg-slate-800 border border-slate-700 focus:border-blue-500 focus:bg-slate-800/90 rounded-xl pl-8 pr-3 py-2.5 text-xs text-white placeholder-slate-500 outline-none transition" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Password</label>
+              <div class="relative">
+                <i class="pi pi-lock absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                <input id="authPassword" type="password" required placeholder="••••••••" class="w-full bg-slate-800 border border-slate-700 focus:border-blue-500 focus:bg-slate-800/90 rounded-xl pl-8 pr-9 py-2.5 text-xs text-white placeholder-slate-500 outline-none transition" />
+                <button type="button" onclick="togglePasswordVisibility()" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
+                  <i id="authPasswordIcon" class="pi pi-eye text-xs"></i>
+                </button>
+              </div>
+            </div>
+
+            <div id="authError" class="hidden p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-[11px] flex items-center gap-1.5 font-medium">
+              <i class="pi pi-exclamation-circle text-xs shrink-0"></i>
+              <span id="authErrorText"></span>
+            </div>
+
+            <button type="submit" id="authSubmitBtn" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-blue-500/25 flex items-center justify-center gap-1.5 active:scale-95 transition">
+              Sign In to NAIT FINANCE
+            </button>
+          </form>
+
+          <div class="text-center pt-1">
+            <p id="authToggleText" class="text-[11px] text-slate-400">
+              Don't have an account? <button type="button" onclick="setAuthTab('signup')" class="text-blue-400 font-bold hover:underline">Create Account</button>
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Landing Footer -->
+    <footer class="border-t border-slate-800/80 px-4 py-6 text-center text-xs text-slate-500 space-y-1">
+      <p>🔒 100% Client-Side Privacy • Zero Cloud Database Leaks</p>
+      <p class="text-[10px] text-slate-600">NAIT FINANCE © 2026. All rights reserved.</p>
+    </footer>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- 2. MAIN APP CONTAINER (Protected: Unlocked only after Authentication) -->
+  <!-- ===================================================================== -->
+  <div id="appContainer" class="hidden w-full max-w-[430px] min-h-screen bg-slate-50 flex-col relative shadow-[0_0_40px_rgba(15,23,42,0.06)] border-x border-slate-200/80 mx-auto text-slate-900">
+
+    <!-- Compact Top Sticky App Bar with Official NAIT FINANCE Logo & User Profile -->
     <header class="sticky top-0 z-30 glass-header border-b border-slate-200/80 px-3.5 py-2.5 flex items-center justify-between">
       <div class="flex items-center gap-2.5">
         <img src="./icon.png" alt="NAIT FINANCE Logo" class="w-8 h-8 rounded-xl shadow-sm border border-slate-200/80 object-cover" />
@@ -143,6 +363,13 @@
       </div>
 
       <div class="flex items-center gap-1.5">
+        <!-- Active User Profile Pill in Header -->
+        <button type="button" onclick="openModal('settingsModal')" id="userHeaderPill" title="Account & Settings" class="flex items-center gap-1.5 px-2 py-1 rounded-full bg-slate-100 hover:bg-slate-200/80 border border-slate-200 text-slate-700 text-[11px] font-semibold transition active:scale-95 max-w-[125px]">
+          <img id="userHeaderAvatar" src="" class="w-4 h-4 rounded-full hidden object-cover shrink-0" />
+          <span id="userHeaderInitial" class="w-4 h-4 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white text-[9px] flex items-center justify-center font-bold shrink-0">U</span>
+          <span id="userHeaderName" class="truncate text-[10px]">User</span>
+        </button>
+
         <button id="installPwaBtn" class="hidden px-2 py-1 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 text-[11px] font-semibold flex items-center gap-1 active:scale-95 transition">
           <i class="pi pi-download text-[10px]"></i> Install
         </button>
@@ -757,6 +984,26 @@
           </button>
         </div>
 
+        <!-- Active User Account & Sign Out -->
+        <div id="settingsUserProfileCard" class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center justify-between gap-2.5">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <img id="settingsUserAvatar" src="" class="w-9 h-9 rounded-full hidden object-cover border border-slate-200 shrink-0" />
+            <div id="settingsUserInitial" class="w-9 h-9 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-bold flex items-center justify-center text-xs shrink-0 shadow-sm">
+              U
+            </div>
+            <div class="min-w-0">
+              <p id="settingsUserName" class="text-xs font-bold text-slate-900 truncate">User</p>
+              <div class="flex items-center gap-1.5">
+                <span id="settingsUserProviderBadge" class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-blue-100 text-blue-700">Google</span>
+                <span id="settingsUserEmail" class="text-[10px] text-slate-500 truncate">user@gmail.com</span>
+              </div>
+            </div>
+          </div>
+          <button type="button" onclick="handleSignOut()" class="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-[11px] font-bold flex items-center gap-1 transition shrink-0 active:scale-95">
+            <i class="pi pi-sign-out text-[10px]"></i> Sign Out
+          </button>
+        </div>
+
         <!-- API Keys Configuration (BYOK - Device Local Storage Only) -->
         <div class="space-y-2.5 bg-slate-50 p-3 rounded-xl border border-slate-200">
           <div class="flex items-center justify-between">
@@ -825,15 +1072,15 @@
       </div>
     </div>
 
-    <!-- Toast Notification (Light Mode) -->
-    <div id="toast" class="fixed top-14 left-1/2 -translate-x-1/2 z-50 hidden px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-800 shadow-lg flex items-center gap-1.5">
-      <i id="toastIcon" class="pi pi-check-circle text-emerald-600 text-xs"></i>
-      <span id="toastMsg">Saved!</span>
-    </div>
+  </div>
 
+  <!-- Global Toast Notification (Works on both Landing Page and Main App) -->
+  <div id="toast" class="fixed top-14 left-1/2 -translate-x-1/2 z-50 hidden px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-800 shadow-xl flex items-center gap-1.5 transition-all">
+    <i id="toastIcon" class="pi pi-check-circle text-emerald-600 text-xs"></i>
+    <span id="toastMsg">Saved!</span>
   </div>
 
   <!-- Main Application Script -->
-  <script src="./app.js?v=10"></script>
+  <script src="./app.js?v=11"></script>
 </body>
 </html>
