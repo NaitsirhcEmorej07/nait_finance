@@ -144,6 +144,99 @@
       border-radius: 0.75rem !important;
       overflow: hidden !important;
     }
+
+    /* Landing Page Light / Dark Mode Theming */
+    html:not(.dark) #landingPage {
+      background-color: #f8fafc !important;
+      color: #0f172a !important;
+    }
+    html:not(.dark) #landingPage header {
+      background: rgba(255, 255, 255, 0.88) !important;
+      border-color: #e2e8f0 !important;
+    }
+    html:not(.dark) #landingPage .landing-hero-title {
+      color: #0f172a !important;
+    }
+    html:not(.dark) #landingPage .landing-hero-desc {
+      color: #475569 !important;
+    }
+    html:not(.dark) #landingPage .landing-vault-btn {
+      background-color: #ffffff !important;
+      border-color: #cbd5e1 !important;
+      color: #1e293b !important;
+    }
+    html:not(.dark) #landingPage .landing-vault-btn:hover {
+      background-color: #f1f5f9 !important;
+    }
+    html:not(.dark) #landingPage .landing-feature-card {
+      background-color: #ffffff !important;
+      border-color: #e2e8f0 !important;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+    }
+    html:not(.dark) #landingPage .landing-feature-card h3 {
+      color: #0f172a !important;
+    }
+    html:not(.dark) #landingPage .landing-feature-card p {
+      color: #475569 !important;
+    }
+    html:not(.dark) #landingPage .landing-auth-card {
+      background-color: #ffffff !important;
+      border-color: #e2e8f0 !important;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04) !important;
+    }
+    html:not(.dark) #landingPage .landing-auth-card h2 {
+      color: #0f172a !important;
+    }
+    html:not(.dark) #landingPage .landing-auth-card p {
+      color: #64748b !important;
+    }
+    html:not(.dark) #landingPage .landing-tab-bar {
+      background-color: #f1f5f9 !important;
+      border-color: #e2e8f0 !important;
+    }
+    html:not(.dark) #landingPage .landing-tab-inactive {
+      color: #64748b !important;
+    }
+    html:not(.dark) #landingPage .landing-tab-inactive:hover {
+      color: #0f172a !important;
+    }
+    html:not(.dark) #landingPage input {
+      background-color: #f8fafc !important;
+      border-color: #cbd5e1 !important;
+      color: #0f172a !important;
+    }
+    html:not(.dark) #landingPage input::placeholder {
+      color: #94a3b8 !important;
+    }
+    html:not(.dark) #landingPage label {
+      color: #475569 !important;
+    }
+    html:not(.dark) #landingPage .landing-divider-line {
+      border-color: #e2e8f0 !important;
+    }
+    html:not(.dark) #landingPage .landing-divider-badge {
+      background-color: #ffffff !important;
+      color: #64748b !important;
+    }
+    html:not(.dark) #landingPage footer {
+      border-color: #e2e8f0 !important;
+      color: #64748b !important;
+    }
+    html:not(.dark) #landingPage footer p:last-child {
+      color: #94a3b8 !important;
+    }
+    html:not(.dark) #landingThemeToggleBtn {
+      background-color: #ffffff !important;
+      color: #4f46e5 !important;
+      border-color: #cbd5e1 !important;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1) !important;
+    }
+    html.dark #landingThemeToggleBtn {
+      background-color: rgba(15, 23, 42, 0.9) !important;
+      color: #fbbf24 !important;
+      border-color: #334155 !important;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5) !important;
+    }
   </style>
 </head>
 <body class="min-h-screen bg-slate-950 text-slate-100 selection:bg-blue-500/20 font-sans">
@@ -181,11 +274,11 @@
           <span>100% On-Device Privacy • SQLite WebAssembly</span>
         </div>
 
-        <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-white leading-[1.18] max-w-2xl mx-auto">
+        <h1 class="landing-hero-title text-3xl sm:text-5xl font-extrabold tracking-tight text-white leading-[1.18] max-w-2xl mx-auto">
           Take Full Control of Your Wealth — <span class="bg-gradient-to-r from-blue-400 via-sky-300 to-emerald-400 bg-clip-text text-transparent">Offline & Intelligent</span>
         </h1>
 
-        <p class="text-xs sm:text-sm text-slate-400 leading-relaxed max-w-md mx-auto">
+        <p class="landing-hero-desc text-xs sm:text-sm text-slate-400 leading-relaxed max-w-md mx-auto">
           Private personal finance tracker for Cash, E-Wallets, and Banks. Powered by an on-device SQLite ledger and your own AI advisor. Zero cloud leaks.
         </p>
 
@@ -193,7 +286,7 @@
           <button type="button" onclick="scrollToAuth('signup')" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-blue-500/30 active:scale-95 transition flex items-center gap-1.5">
             <i class="pi pi-user-plus text-xs"></i> Get Started Free
           </button>
-          <button type="button" onclick="scrollToAuth('signin')" class="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 text-xs font-bold active:scale-95 transition flex items-center gap-1.5">
+          <button type="button" onclick="scrollToAuth('signin')" class="landing-vault-btn px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 text-xs font-bold active:scale-95 transition flex items-center gap-1.5">
             <i class="pi pi-lock text-xs"></i> Unlock Vault
           </button>
         </div>
@@ -231,7 +324,7 @@
       <!-- 3 Feature Pillars -->
       <section class="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl mx-auto">
         <!-- Feature 1 -->
-        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 space-y-2 hover:border-slate-700 transition">
+        <div class="landing-feature-card bg-slate-900/80 border border-slate-800 rounded-2xl p-4 space-y-2 hover:border-slate-700 transition">
           <div class="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center">
             <i class="pi pi-wallet text-sm"></i>
           </div>
@@ -242,7 +335,7 @@
         </div>
 
         <!-- Feature 2 -->
-        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 space-y-2 hover:border-slate-700 transition">
+        <div class="landing-feature-card bg-slate-900/80 border border-slate-800 rounded-2xl p-4 space-y-2 hover:border-slate-700 transition">
           <div class="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center">
             <i class="pi pi-sparkles text-sm"></i>
           </div>
@@ -253,7 +346,7 @@
         </div>
 
         <!-- Feature 3 -->
-        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 space-y-2 hover:border-slate-700 transition">
+        <div class="landing-feature-card bg-slate-900/80 border border-slate-800 rounded-2xl p-4 space-y-2 hover:border-slate-700 transition">
           <div class="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
             <i class="pi pi-database text-sm"></i>
           </div>
@@ -266,7 +359,7 @@
 
       <!-- AUTHENTICATION GATE CARD -->
       <section id="authSection" class="max-w-[400px] mx-auto w-full pt-4">
-        <div class="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-2xl backdrop-blur-xl space-y-4">
+        <div class="landing-auth-card bg-slate-900/90 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-2xl backdrop-blur-xl space-y-4">
           <div class="text-center space-y-1">
             <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 p-0.5 mx-auto shadow-md shadow-blue-500/20">
               <img src="./icon.png" alt="Logo" class="w-full h-full rounded-2xl object-cover" />
@@ -276,11 +369,11 @@
           </div>
 
           <!-- Auth Mode Switcher Tabs -->
-          <div class="grid grid-cols-2 gap-1 bg-slate-800/80 p-1 rounded-xl border border-slate-700/60 text-center">
+          <div class="landing-tab-bar grid grid-cols-2 gap-1 bg-slate-800/80 p-1 rounded-xl border border-slate-700/60 text-center">
             <button type="button" id="authTabSignIn" onclick="setAuthTab('signin')" class="py-2 text-xs font-bold rounded-lg transition bg-blue-600 text-white shadow-sm">
               Sign In
             </button>
-            <button type="button" id="authTabSignUp" onclick="setAuthTab('signup')" class="py-2 text-xs font-semibold rounded-lg transition text-slate-400 hover:text-white">
+            <button type="button" id="authTabSignUp" onclick="setAuthTab('signup')" class="landing-tab-inactive py-2 text-xs font-semibold rounded-lg transition text-slate-400 hover:text-white">
               Create Account
             </button>
           </div>
@@ -304,8 +397,8 @@
 
           <!-- Divider -->
           <div class="relative flex items-center justify-center my-2">
-            <hr class="w-full border-slate-800">
-            <span class="absolute px-3 bg-slate-900 text-[10px] uppercase font-bold text-slate-500 tracking-wider">or email</span>
+            <hr class="landing-divider-line w-full border-slate-800">
+            <span class="landing-divider-badge absolute px-3 bg-slate-900 text-[10px] uppercase font-bold text-slate-500 tracking-wider">or email</span>
           </div>
 
           <!-- Manual Auth Form -->
@@ -361,6 +454,18 @@
       <p>🔒 100% Client-Side Privacy • Zero Cloud Database Leaks</p>
       <p class="text-[10px] text-slate-600">NAIT FINANCE © 2026. All rights reserved.</p>
     </footer>
+
+    <!-- Floating Light / Dark Mode Toggle Button (Landing Page only, bottom right, compact for mobile) -->
+    <button
+      id="landingThemeToggleBtn"
+      type="button"
+      onclick="toggleThemeMode()"
+      title="Toggle Light / Dark Mode"
+      aria-label="Toggle Light / Dark Mode"
+      class="fixed bottom-4 right-4 z-50 w-8 h-8 rounded-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-amber-400 shadow-xl flex items-center justify-center active:scale-90 transition-all cursor-pointer"
+    >
+      <i id="landingThemeToggleIcon" class="pi pi-sun text-xs"></i>
+    </button>
   </div>
 
   <!-- ===================================================================== -->
@@ -1036,7 +1141,7 @@
         <!-- SQLite Database Actions -->
         <div class="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
           <h4 class="text-[10px] font-bold uppercase tracking-wider text-slate-600">Database Backup</h4>
-          <p class="text-[11px] text-slate-500">Export or restore your local transactions database.</p>
+          <p id="settingsDbScopeText" class="text-[11px] text-slate-500">Export or restore your private local transactions database.</p>
           <div class="grid grid-cols-2 gap-1.5 pt-0.5">
             <button onclick="exportSqliteFile()" class="py-2 px-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-bold flex items-center justify-center gap-1 hover:bg-emerald-100 transition">
               <i class="pi pi-download text-[10px]"></i> Export .sqlite
@@ -1091,6 +1196,6 @@
   </div>
 
   <!-- Main Application Script -->
-  <script src="./app.js?v=12"></script>
+  <script src="./app.js?v=13"></script>
 </body>
 </html>

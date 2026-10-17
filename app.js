@@ -3,7 +3,18 @@
 // ============================================================================
 
 const DB_STORE_NAME = 'nait_finance_idb';
-const DB_KEY = 'sqlite_binary_dump';
+const DB_LEGACY_KEY = 'sqlite_binary_dump';
+
+let currentLoadedUserKey = null;
+
+function getCurrentUserStorageKey() {
+  const session = getAuthSession();
+  if (!session || !session.email) {
+    return 'sqlite_user_guest';
+  }
+  const safeEmail = session.email.trim().toLowerCase().replace(/[^a-z0-9_.-]/g, '_');
+  return `sqlite_user_${safeEmail}`;
+}
 
 // Google OAuth & Authentication Constants
 const GOOGLE_CLIENT_ID = '653800757126-b57ib9b29p1g47t97fc4utcpdhnoja4g.apps.googleusercontent.com';
@@ -42,12 +53,32 @@ function getAuthSession() {
 }
 
 function setAuthSession(user) {
+  // If an active database is open from another account, safely close it
+  if (db) {
+    try { db.close(); } catch (e) {}
+    db = null;
+  }
+  currentLoadedUserKey = null;
+  chatMessages = [];
+
   localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(user));
   applyAuthState();
 }
 
 function handleSignOut() {
   if (!confirm('Are you sure you want to sign out? Your financial records remain safely preserved on this device.')) return;
+
+  // Persist current account database before tearing down in-memory instance
+  if (db) {
+    saveDatabaseToDevice();
+    try { db.close(); } catch (e) {}
+    db = null;
+  }
+  currentLoadedUserKey = null;
+  chatMessages = [];
+  const chatContainer = document.getElementById('chatContainer');
+  if (chatContainer) chatContainer.innerHTML = '';
+
   localStorage.removeItem(AUTH_SESSION_KEY);
   closeAllModals();
   applyAuthState();
@@ -71,24 +102,41 @@ function applyAuthState() {
   const landingEl = document.getElementById('landingPage');
   const appEl = document.getElementById('appContainer');
 
+  const landingBtn = document.getElementById('landingThemeToggleBtn');
+
   if (session) {
     if (landingEl) landingEl.classList.add('hidden');
+    if (landingBtn) landingBtn.classList.add('hidden');
     if (appEl) {
       appEl.classList.remove('hidden');
       appEl.classList.add('flex');
     }
     updateUserProfileDisplays(session);
-    if (!db) {
+
+    // Verify if currently loaded database belongs to this exact user
+    const expectedKey = getCurrentUserStorageKey();
+    if (!db || currentLoadedUserKey !== expectedKey) {
+      if (db) {
+        try { db.close(); } catch (e) {}
+        db = null;
+      }
       initSqliteEngine();
     } else {
       refreshAllViews();
     }
   } else {
+    if (db) {
+      try { db.close(); } catch (e) {}
+      db = null;
+    }
+    currentLoadedUserKey = null;
+
     if (appEl) {
       appEl.classList.add('hidden');
       appEl.classList.remove('flex');
     }
     if (landingEl) landingEl.classList.remove('hidden');
+    if (landingBtn) landingBtn.classList.remove('hidden');
     closeAllModals();
     initGoogleAuth();
   }
@@ -120,6 +168,7 @@ function updateUserProfileDisplays(session) {
   const settingsInitial = document.getElementById('settingsUserInitial');
   const settingsAvatar = document.getElementById('settingsUserAvatar');
   const settingsBadge = document.getElementById('settingsUserProviderBadge');
+  const settingsDbScope = document.getElementById('settingsDbScopeText');
 
   if (settingsName) settingsName.textContent = session.name || 'User';
   if (settingsEmail) settingsEmail.textContent = session.email || '';
@@ -128,6 +177,10 @@ function updateUserProfileDisplays(session) {
     settingsBadge.className = session.provider === 'google'
       ? 'text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700'
       : 'text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700';
+  }
+
+  if (settingsDbScope) {
+    settingsDbScope.textContent = `Private database for ${session.name || session.email}. Isolated on-device.`;
   }
 
   if (session.avatar && settingsAvatar) {
@@ -438,12 +491,13 @@ function openIndexedDB() {
 
 async function saveDatabaseToDevice() {
   if (!db) return;
+  const userKey = getCurrentUserStorageKey();
   const binaryArray = db.export();
   try {
     const idb = await openIndexedDB();
     await new Promise((resolve, reject) => {
       const tx = idb.transaction('files', 'readwrite');
-      tx.objectStore('files').put(binaryArray, DB_KEY);
+      tx.objectStore('files').put(binaryArray, userKey);
       tx.oncomplete = () => resolve();
       tx.onerror = (err) => reject(err);
     });
@@ -453,14 +507,42 @@ async function saveDatabaseToDevice() {
 }
 
 async function loadDatabaseFromDevice() {
+  const userKey = getCurrentUserStorageKey();
   try {
     const idb = await openIndexedDB();
-    return await new Promise((resolve, reject) => {
+
+    // 1. Check user-specific storage first
+    const userBytes = await new Promise((resolve, reject) => {
       const tx = idb.transaction('files', 'readonly');
-      const req = tx.objectStore('files').get(DB_KEY);
+      const req = tx.objectStore('files').get(userKey);
       req.onsuccess = () => resolve(req.result || null);
       req.onerror = (err) => reject(err);
     });
+
+    if (userBytes) return userBytes;
+
+    // 2. Migration for existing legacy database:
+    // If the legacy global DB exists and hasn't been claimed yet, migrate it to the first user.
+    const session = getAuthSession();
+    const legacyClaimedBy = localStorage.getItem('nait_legacy_migrated_to');
+    if (!legacyClaimedBy && session && session.email) {
+      const legacyBytes = await new Promise((resolve, reject) => {
+        const tx = idb.transaction('files', 'readonly');
+        const req = tx.objectStore('files').get(DB_LEGACY_KEY);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = (err) => reject(err);
+      });
+
+      if (legacyBytes && legacyBytes.byteLength > 0) {
+        const putTx = idb.transaction('files', 'readwrite');
+        putTx.objectStore('files').put(legacyBytes, userKey);
+        localStorage.setItem('nait_legacy_migrated_to', session.email.toLowerCase());
+        return legacyBytes;
+      }
+    }
+
+    // New or second user: returns null (creates a brand-new empty DB)
+    return null;
   } catch (err) {
     return null;
   }
@@ -471,10 +553,13 @@ async function loadDatabaseFromDevice() {
 // ============================================================================
 async function initSqliteEngine() {
   try {
-    SQL = await initSqlJs({
-      locateFile: (file) => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${file}`
-    });
+    if (!SQL) {
+      SQL = await initSqlJs({
+        locateFile: (file) => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${file}`
+      });
+    }
 
+    currentLoadedUserKey = getCurrentUserStorageKey();
     const savedBytes = await loadDatabaseFromDevice();
     if (savedBytes && savedBytes.byteLength > 0) {
       db = new SQL.Database(new Uint8Array(savedBytes));
@@ -508,12 +593,16 @@ function ensureSchema() {
     CREATE INDEX IF NOT EXISTS idx_tx_type ON transactions(type);
   `);
 
-  // Seamless migration for existing device databases that don't have sub_account yet
+  // Seamless migrations for existing device databases
   try {
     const cols = queryAll(`PRAGMA table_info(transactions)`);
     const hasSubAcc = cols.some((c) => c.name === 'sub_account');
     if (!hasSubAcc) {
       db.run(`ALTER TABLE transactions ADD COLUMN sub_account TEXT NOT NULL DEFAULT '';`);
+    }
+    const hasUserEmail = cols.some((c) => c.name === 'user_email');
+    if (!hasUserEmail) {
+      db.run(`ALTER TABLE transactions ADD COLUMN user_email TEXT NOT NULL DEFAULT '';`);
     }
   } catch (e) {
     console.warn('Migration check:', e);
@@ -972,10 +1061,13 @@ async function handleDepositSubmit(e) {
     return;
   }
 
+  const session = getAuthSession();
+  const userEmail = session?.email || '';
+
   db.run(
-    `INSERT INTO transactions (type, account, sub_account, category, description, amount, created_at)
-     VALUES ('deposit', ?, ?, 'Deposit', ?, ?, ?)`,
-    [from, subAccount, description, amount, new Date().toISOString()]
+    `INSERT INTO transactions (type, account, sub_account, category, description, amount, created_at, user_email)
+     VALUES ('deposit', ?, ?, 'Deposit', ?, ?, ?, ?)`,
+    [from, subAccount, description, amount, new Date().toISOString(), userEmail]
   );
 
   await saveDatabaseToDevice();
@@ -1000,10 +1092,13 @@ async function handleSpendSubmit(e) {
     return;
   }
 
+  const session = getAuthSession();
+  const userEmail = session?.email || '';
+
   db.run(
-    `INSERT INTO transactions (type, account, sub_account, category, description, amount, created_at)
-     VALUES ('spend', ?, ?, ?, ?, ?, ?)`,
-    [paidFrom, subAccount, category, description, amount, new Date().toISOString()]
+    `INSERT INTO transactions (type, account, sub_account, category, description, amount, created_at, user_email)
+     VALUES ('spend', ?, ?, ?, ?, ?, ?, ?)`,
+    [paidFrom, subAccount, category, description, amount, new Date().toISOString(), userEmail]
   );
 
   await saveDatabaseToDevice();
@@ -1307,19 +1402,44 @@ function setLLMProvider(provider) {
   }
 }
 
+function getChatStorageKey() {
+  const session = getAuthSession();
+  if (!session || !session.email) return 'nait_chat_guest';
+  const safeEmail = session.email.trim().toLowerCase().replace(/[^a-z0-9_.-]/g, '_');
+  return `nait_chat_${safeEmail}`;
+}
+
+function loadUserChatMessages() {
+  try {
+    const raw = localStorage.getItem(getChatStorageKey());
+    chatMessages = raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    chatMessages = [];
+  }
+}
+
+function saveUserChatMessages() {
+  try {
+    localStorage.setItem(getChatStorageKey(), JSON.stringify(chatMessages));
+  } catch (e) {}
+}
+
 function initChatGreeting() {
+  loadUserChatMessages();
   setLLMProvider(currentProvider);
   renderChatMessages();
 }
 
 function clearChatHistory() {
   chatMessages = [];
+  saveUserChatMessages();
   initChatGreeting();
 }
 
 function renderChatMessages() {
   const container = document.getElementById('chatContainer');
   if (!container) return;
+  saveUserChatMessages();
 
   container.innerHTML = chatMessages
     .map((m) => {
@@ -1617,19 +1737,26 @@ async function callGeminiLLM(systemPrompt, userPrompt) {
 // ============================================================================
 function exportSqliteFile() {
   if (!db) return;
+  const session = getAuthSession();
+  const userName = session?.name || session?.email || 'user';
+  const cleanName = userName.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 24);
+  const dateStr = new Date().toISOString().slice(0, 10);
+
   const binaryArray = db.export();
   const blob = new Blob([binaryArray], { type: 'application/x-sqlite3' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `nait_finance_${new Date().toISOString().slice(0, 10)}.sqlite`;
+  a.download = `nait_finance_${cleanName}_${dateStr}.sqlite`;
   a.click();
   URL.revokeObjectURL(a.href);
-  showToast('Exported .sqlite database!');
+  showToast(`Exported .sqlite for ${session?.name || 'current account'}!`);
 }
 
 async function importSqliteFile(event) {
   const file = event.target.files?.[0];
   if (!file) return;
+  const session = getAuthSession();
+  const accName = session?.name || session?.email || 'current account';
   try {
     const buf = await file.arrayBuffer();
     const candidateDb = new SQL.Database(new Uint8Array(buf));
@@ -1638,7 +1765,7 @@ async function importSqliteFile(event) {
     await saveDatabaseToDevice();
     refreshAllViews();
     closeModal('settingsModal');
-    showToast('Imported SQLite database!');
+    showToast(`Imported SQLite database for ${accName}!`);
   } catch (err) {
     showToast('Invalid SQLite file', true);
   } finally {
@@ -1665,6 +1792,16 @@ function applyThemeMode(mode) {
       label.textContent = 'Light Mode';
     }
   }
+
+  // Floating Landing Page theme toggle icon
+  const landingIcon = document.getElementById('landingThemeToggleIcon');
+  if (landingIcon) {
+    if (isDark) {
+      landingIcon.className = 'pi pi-sun text-xs text-amber-400';
+    } else {
+      landingIcon.className = 'pi pi-moon text-xs text-indigo-600';
+    }
+  }
 }
 
 function toggleThemeMode() {
@@ -1676,12 +1813,14 @@ function toggleThemeMode() {
 }
 
 async function resetDatabase() {
-  if (!confirm('Are you sure you want to wipe all transactions on this device?')) return;
+  const session = getAuthSession();
+  const accName = session?.name || session?.email || 'this account';
+  if (!confirm(`Are you sure you want to wipe all transactions for ${accName}? This will NOT affect other registered accounts on this device.`)) return;
   db.run(`DELETE FROM transactions;`);
   await saveDatabaseToDevice();
   refreshAllViews();
   closeModal('settingsModal');
-  showToast('Database cleared');
+  showToast(`Database cleared for ${accName}`);
 }
 
 // ============================================================================
@@ -1706,8 +1845,8 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
       const keys = await caches.keys();
-      await Promise.all(keys.filter((k) => k !== 'nait-finance-light-v12').map((k) => caches.delete(k)));
-      const reg = await navigator.serviceWorker.register('./sw.js?v=12');
+      await Promise.all(keys.filter((k) => k !== 'nait-finance-light-v13').map((k) => caches.delete(k)));
+      const reg = await navigator.serviceWorker.register('./sw.js?v=13');
       await reg.update();
     } catch (e) {}
   });
