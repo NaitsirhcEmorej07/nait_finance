@@ -131,6 +131,19 @@
       border-color: #334155 !important;
       color: #f8fafc !important;
     }
+    /* Google Sign-In Alignment matching inputs and tabs */
+    #googleBtnWrapper {
+      width: 100% !important;
+      display: flex !important;
+      justify-content: center !important;
+    }
+    #googleBtnWrapper > div,
+    #googleBtnWrapper iframe {
+      width: 100% !important;
+      max-width: 100% !important;
+      border-radius: 0.75rem !important;
+      overflow: hidden !important;
+    }
   </style>
 </head>
 <body class="min-h-screen bg-slate-950 text-slate-100 selection:bg-blue-500/20 font-sans">
@@ -274,7 +287,7 @@
 
           <!-- Google Sign In Button Container -->
           <div class="space-y-2">
-            <div id="googleBtnWrapper" class="flex justify-center w-full min-h-[44px]">
+            <div id="googleBtnWrapper" class="w-full flex justify-center [&>div]:!w-full [&_iframe]:!w-full [&_iframe]:!rounded-xl overflow-hidden min-h-[44px]">
               <!-- Rendered via Google Identity Services -->
             </div>
             <!-- Custom Fallback / Alternative Google Trigger Button -->
@@ -372,9 +385,6 @@
 
         <button id="installPwaBtn" class="hidden px-2 py-1 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 text-[11px] font-semibold flex items-center gap-1 active:scale-95 transition">
           <i class="pi pi-download text-[10px]"></i> Install
-        </button>
-        <button onclick="openModal('settingsModal')" title="Settings & Database Backup" class="w-7 h-7 rounded-lg bg-white hover:bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 active:scale-95 transition">
-          <i class="pi pi-cog text-xs"></i>
         </button>
       </div>
     </header>
@@ -1081,6 +1091,6 @@
   </div>
 
   <!-- Main Application Script -->
-  <script src="./app.js?v=11"></script>
+  <script src="./app.js?v=12"></script>
 </body>
 </html>

@@ -142,6 +142,25 @@ function updateUserProfileDisplays(session) {
 }
 
 // Google Identity Services (GIS)
+function renderGoogleButton() {
+  const btnWrapper = document.getElementById('googleBtnWrapper');
+  if (!btnWrapper || typeof google === 'undefined' || !google.accounts || !google.accounts.id) return;
+
+  const measuredWidth = Math.floor(btnWrapper.getBoundingClientRect().width || btnWrapper.offsetWidth || 352);
+  const targetWidth = Math.min(400, Math.max(200, measuredWidth > 0 ? measuredWidth : 352));
+
+  btnWrapper.innerHTML = '';
+  google.accounts.id.renderButton(btnWrapper, {
+    type: 'standard',
+    theme: 'outline',
+    size: 'large',
+    text: 'continue_with',
+    shape: 'rectangular',
+    logo_alignment: 'left',
+    width: targetWidth
+  });
+}
+
 function initGoogleAuth() {
   if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
     try {
@@ -152,19 +171,7 @@ function initGoogleAuth() {
         cancel_on_tap_outside: true
       });
 
-      const btnWrapper = document.getElementById('googleBtnWrapper');
-      if (btnWrapper) {
-        btnWrapper.innerHTML = '';
-        google.accounts.id.renderButton(btnWrapper, {
-          type: 'standard',
-          theme: 'outline',
-          size: 'large',
-          text: 'continue_with',
-          shape: 'pill',
-          logo_alignment: 'left',
-          width: 320
-        });
-      }
+      renderGoogleButton();
 
       // Hide fallback button if native Google button successfully renders
       const fallbackBtn = document.getElementById('googleCustomBtn');
@@ -181,6 +188,10 @@ function initGoogleAuth() {
     }
   }
 }
+
+window.addEventListener('resize', () => {
+  renderGoogleButton();
+});
 
 function triggerGoogleSignInPrompt() {
   if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
@@ -1695,8 +1706,8 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
       const keys = await caches.keys();
-      await Promise.all(keys.filter((k) => k !== 'nait-finance-light-v11').map((k) => caches.delete(k)));
-      const reg = await navigator.serviceWorker.register('./sw.js?v=11');
+      await Promise.all(keys.filter((k) => k !== 'nait-finance-light-v12').map((k) => caches.delete(k)));
+      const reg = await navigator.serviceWorker.register('./sw.js?v=12');
       await reg.update();
     } catch (e) {}
   });
